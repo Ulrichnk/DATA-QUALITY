@@ -88,8 +88,78 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <h4 class="anchored" data-anchor-id="contenu-attendu-dans-la-note-de-cadrage">Contenu attendu dans la note de cadrage :</h4>
 <ul>
 <li><p><strong>Objectif du projet :</strong> Mettre en place une application permettant d’évaluer automatiquement la qualité des données clients en se basant sur trois critères : fraîcheur, présence, et cohérence des données.</p></li>
-<li><p><strong>Timeline :</strong> | Étape | Description | Durée | |—————————|————————————————-|——–| | Analyse des besoins | Identifier les critères et leurs règles | 1 jour | | Développement du prototype| Implémentation du moteur qualité | 3 jours| | Tests | Validation sur les fichiers fournis | 1 jour | | Finalisation | Interface utilisateur, documentation | 1 jour |</p></li>
-<li><p><strong>RACI :</strong> | Rôles | Responsable | Approbatif | Consultatif | Informé | |——————|————-|————|————-|———| | Analyse des besoins | Étudiants | Professeur | Directeur des risques | Équipe projet | | Développement | Étudiants | | Équipe projet | Professeur |</p></li>
+<li><p><strong>Timeline :</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 32%">
+<col style="width: 58%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Étape</th>
+<th>Description</th>
+<th>Durée</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Analyse des besoins</td>
+<td>Identifier les critères et leurs règles</td>
+<td>1 jour</td>
+</tr>
+<tr class="even">
+<td>Développement du prototype</td>
+<td>Implémentation du moteur qualité</td>
+<td>3 jours</td>
+</tr>
+<tr class="odd">
+<td>Tests</td>
+<td>Validation sur les fichiers fournis</td>
+<td>1 jour</td>
+</tr>
+<tr class="even">
+<td>Finalisation</td>
+<td>Interface utilisateur, documentation</td>
+<td>1 jour</td>
+</tr>
+</tbody>
+</table></li>
+<li><p><strong>RACI :</strong></p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 27%">
+<col style="width: 20%">
+<col style="width: 18%">
+<col style="width: 20%">
+<col style="width: 13%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Rôles</th>
+<th>Responsable</th>
+<th>Approbatif</th>
+<th>Consultatif</th>
+<th>Informé</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Analyse des besoins</td>
+<td>Étudiants</td>
+<td>Professeur</td>
+<td>Directeur des risques</td>
+<td>Équipe projet</td>
+</tr>
+<tr class="even">
+<td>Développement</td>
+<td>Étudiants</td>
+<td></td>
+<td>Équipe projet</td>
+<td>Professeur</td>
+</tr>
+</tbody>
+</table></li>
 <li><p><strong>Découpage :</strong></p>
 <ul>
 <li><strong>Livrable 1 :</strong> Prototype pour analyser la fraîcheur.</li>
@@ -148,7 +218,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <section id="a.-analyse-des-fichiers-csvxls" class="level4">
 <h4 class="anchored" data-anchor-id="a.-analyse-des-fichiers-csvxls">a. <strong>Analyse des fichiers CSV/XLS</strong></h4>
 <p>Un exemple pour lire et analyser un fichier CSV :</p>
-<div id="b21fedad" class="cell" data-execution_count="1">
+<div id="28bc9967" class="cell" data-execution_count="1">
 <div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> pandas <span class="im">as</span> pd</span>
 <span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Lecture des données</span></span>
@@ -163,7 +233,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="b.-analyse-de-la-fraîcheur-des-données" class="level4">
 <h4 class="anchored" data-anchor-id="b.-analyse-de-la-fraîcheur-des-données">b. <strong>Analyse de la fraîcheur des données</strong></h4>
-<div id="2004b23c" class="cell" data-execution_count="2">
+<div id="a4fb6acf" class="cell" data-execution_count="2">
 <div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> datetime <span class="im">import</span> datetime</span>
 <span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_freshness(df, date_column, threshold_years<span class="op">=</span><span class="dv">2</span>):</span>
@@ -178,7 +248,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="c.-analyse-des-données-manquantes" class="level4">
 <h4 class="anchored" data-anchor-id="c.-analyse-des-données-manquantes">c.&nbsp;<strong>Analyse des données manquantes</strong></h4>
-<div id="75d4fdc3" class="cell" data-execution_count="3">
+<div id="b3ded283" class="cell" data-execution_count="3">
 <div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> check_missing_data(df, required_columns):</span>
 <span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    missing_report <span class="op">=</span> {}</span>
 <span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> col <span class="kw">in</span> required_columns:</span>
@@ -189,7 +259,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="d.-validation-de-la-cohérence" class="level4">
 <h4 class="anchored" data-anchor-id="d.-validation-de-la-cohérence">d.&nbsp;<strong>Validation de la cohérence</strong></h4>
-<div id="93e1d8d7" class="cell" data-execution_count="4">
+<div id="89a9f520" class="cell" data-execution_count="4">
 <div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> re</span>
 <span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> validate_postal_code(df, postal_code_column, valid_length<span class="op">=</span><span class="dv">5</span>):</span>
@@ -209,7 +279,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </section>
 <section id="e.-interface-utilisateur-avec-streamlit" class="level4">
 <h4 class="anchored" data-anchor-id="e.-interface-utilisateur-avec-streamlit">e. <strong>Interface utilisateur avec Streamlit</strong></h4>
-<div id="0e47b9a5" class="cell" data-execution_count="5">
+<div id="bad2346e" class="cell" data-execution_count="5">
 <div class="sourceCode cell-code" id="cb5"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> streamlit <span class="im">as</span> st</span>
 <span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>st.title(<span class="st">"Analyse de la Qualité des Données Clients"</span>)</span>
@@ -235,18 +305,18 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>    postal_results <span class="op">=</span> validate_postal_code(df, postal_code_column<span class="op">=</span><span class="st">'code_postal'</span>, valid_length<span class="op">=</span><span class="dv">5</span>)</span>
 <span id="cb5-24"><a href="#cb5-24" aria-hidden="true" tabindex="-1"></a>    st.write(<span class="st">"Codes postaux invalides :"</span>, postal_results)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stderr">
-<pre><code>2025-01-26 11:00:52.623 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
-2025-01-26 11:00:52.711 
+<pre><code>2025-01-26 15:17:49.906 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-01-26 15:17:50.043 
   Warning: to view this Streamlit app on a browser, run it with the following
   command:
 
     streamlit run /home/cytech/Desktop/DATA QUALITY/env/lib/python3.12/site-packages/ipykernel_launcher.py [ARGUMENTS]
-2025-01-26 11:00:52.712 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
-2025-01-26 11:00:52.712 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
-2025-01-26 11:00:52.713 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
-2025-01-26 11:00:52.713 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
-2025-01-26 11:00:52.714 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
-2025-01-26 11:00:52.714 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.</code></pre>
+2025-01-26 15:17:50.044 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-01-26 15:17:50.044 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-01-26 15:17:50.045 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-01-26 15:17:50.045 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-01-26 15:17:50.046 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.
+2025-01-26 15:17:50.046 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.</code></pre>
 </div>
 </div>
 <hr>
