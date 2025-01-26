@@ -1,0 +1,171 @@
+Voici un plan clair et organisé pour répondre aux exigences de ce projet :
+
+---
+
+### **1️⃣ Note de cadrage**
+#### Contenu attendu dans la note de cadrage :
+- **Objectif du projet :**
+  Mettre en place une application permettant d’évaluer automatiquement la qualité des données clients en se basant sur trois critères : fraîcheur, présence, et cohérence des données.
+  
+- **Timeline :**
+  
+
+  | Étape                     | Description                                     | Durée  |
+  |---------------------------|-------------------------------------------------|--------|
+  | Analyse des besoins       | Identifier les critères et leurs règles         | 1 jour |
+  | Développement du prototype| Implémentation du moteur qualité                | 3 jours|
+  | Tests                     | Validation sur les fichiers fournis            | 1 jour |
+  | Finalisation              | Interface utilisateur, documentation           | 1 jour |
+  
+- **RACI :**
+  
+  
+  | Rôles            | Responsable | Approbatif | Consultatif | Informé |
+  |------------------|-------------|------------|-------------|---------|
+  | Analyse des besoins | Étudiants   | Professeur  | Directeur des risques | Équipe projet |
+  | Développement        | Étudiants   |             | Équipe projet         | Professeur     |
+
+- **Découpage :**
+  - **Livrable 1 :** Prototype pour analyser la fraîcheur.
+  - **Livrable 2 :** Analyse des données manquantes et des anomalies (présence).
+  - **Livrable 3 :** Validation de la cohérence, notamment sur les codes postaux.
+  - **Livrable 4 :** Documentation claire (technique et fonctionnelle) et interface utilisateur.
+
+---
+
+### **2️⃣ Spécifications fonctionnelles et techniques**
+#### Fonctionnalités principales :
+1. **Fraîcheur des données :**
+   - Analyse de la dernière mise à jour (par exemple, champ "dernière modification").
+   - Détection des clients dont les informations dépassent une durée donnée (ex. : 2 ans).
+   - Sortie : une liste des enregistrements obsolètes.
+
+2. **Présence des données :**
+   - Vérification des champs essentiels : nom, prénom, adresse, numéro de téléphone, etc.
+   - Détection des valeurs manquantes ou nulles.
+   - Sortie : un pourcentage de complétion par champ + liste des enregistrements incomplets.
+
+3. **Cohérence des données :**
+   - Validation des formats de données, notamment :
+     - **Codes postaux** : longueur et appartenance à un pays donné.
+     - **Numéros de téléphone** : validation des formats internationaux.
+   - Sortie : rapport des erreurs ou incohérences trouvées.
+
+#### Technologies :
+- **Langage :** {python} (Pandas pour le traitement des données, Plotly/Dash ou Streamlit pour l'interface utilisateur).
+- **Formats pris en charge :** CSV, XLS (utilisation de `pandas.read_csv` et `pandas.read_excel`).
+- **Framework d'interface utilisateur :**
+  - Option 1 : **Streamlit** (facile à mettre en place pour des interfaces interactives).
+  - Option 2 : **Dash** (plus flexible pour des visualisations avancées).
+
+---
+
+### **3️⃣ Implémentation de l'application**
+#### a. **Analyse des fichiers CSV/XLS**
+Un exemple pour lire et analyser un fichier CSV :
+```{python}
+import pandas as pd
+
+# Lecture des données
+def load_data(file_path):
+    if file_path.endswith('.csv'):
+        return pd.read_csv(file_path)
+    elif file_path.endswith('.xls') or file_path.endswith('.xlsx'):
+        return pd.read_excel(file_path)
+    else:
+        raise ValueError("Format de fichier non pris en charge.")
+```
+
+#### b. **Analyse de la fraîcheur des données**
+```{python}
+from datetime import datetime
+
+def check_freshness(df, date_column, threshold_years=2):
+    # Conversion des dates
+    today = datetime.today()
+    df[date_column] = pd.to_datetime(df[date_column], errors='coerce')
+    
+    # Vérifier les enregistrements obsolètes
+    df['Obsolete'] = (today - df[date_column]).dt.days > (threshold_years * 365)
+    return df[df['Obsolete']]
+```
+
+#### c. **Analyse des données manquantes**
+```{python}
+def check_missing_data(df, required_columns):
+    missing_report = {}
+    for col in required_columns:
+        missing_count = df[col].isnull().sum()
+        missing_report[col] = missing_count
+    return missing_report
+```
+
+#### d. **Validation de la cohérence**
+```{python}
+import re
+
+def validate_postal_code(df, postal_code_column, valid_length=5):
+    # Vérifier si les codes postaux ont une longueur valide
+    df['Invalid_Code'] = df[postal_code_column].apply(
+        lambda x: len(str(x)) != valid_length if pd.notnull(x) else True
+    )
+    return df[df['Invalid_Code']]
+
+def validate_phone_number(df, phone_column):
+    phone_pattern = r'^\+?[1-9]\d{1,14}$'
+    df['Invalid_Phone'] = df[phone_column].apply(
+        lambda x: not re.match(phone_pattern, str(x)) if pd.notnull(x) else True
+    )
+    return df[df['Invalid_Phone']]
+```
+
+#### e. **Interface utilisateur avec Streamlit**
+```{python}
+import streamlit as st
+
+st.title("Analyse de la Qualité des Données Clients")
+
+uploaded_file = st.file_uploader("Chargez un fichier CSV ou Excel", type=['csv', 'xls', 'xlsx'])
+if uploaded_file:
+    df = load_data(uploaded_file)
+    st.write("Aperçu des données :", df.head())
+
+    # Analyse de la fraîcheur
+    st.subheader("Analyse de la fraîcheur")
+    freshness_results = check_freshness(df, date_column='last_update', threshold_years=2)
+    st.write("Enregistrements obsolètes :", freshness_results)
+
+    # Analyse des données manquantes
+    st.subheader("Analyse des données manquantes")
+    required_columns = ['nom', 'prenom', 'adresse', 'telephone']
+    missing_report = check_missing_data(df, required_columns)
+    st.write("Rapport des données manquantes :", missing_report)
+
+    # Validation des codes postaux
+    st.subheader("Validation des codes postaux")
+    postal_results = validate_postal_code(df, postal_code_column='code_postal', valid_length=5)
+    st.write("Codes postaux invalides :", postal_results)
+```
+
+---
+
+### **4️⃣ Documentation**
+- **Introduction :** Décrivez les objectifs du projet.
+- **Guide utilisateur :**
+  - Étapes pour charger un fichier.
+  - Explications sur chaque critère de qualité (fraîcheur, présence, cohérence).
+  - Exemples de sortie pour chaque analyse.
+- **Guide technique :**
+  - Modules utilisés.
+  - Organisation du code.
+  - Instructions pour installer les dépendances (`requirements.txt`).
+
+---
+
+### **Livrables**
+1. **Note de cadrage :** Description synthétique du projet avec timeline, RACI, et livrables.
+2. **Application python :** Fichiers python (ou Streamlit) contenant le moteur de qualité.
+3. **Documentation :** Guide utilisateur et documentation technique.
+
+---
+

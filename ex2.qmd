@@ -1,0 +1,176 @@
+Voici un exemple de **moteur de data quality en Python**, conçu pour analyser la qualité des données selon les critères courants : **fraîcheur**, **présence** (données manquantes), et **cohérence**. Cet exemple est simple mais extensible pour s'adapter à des besoins spécifiques.
+
+---
+
+### **Exemple de Moteur de Data Quality**
+
+#### Étape 1 : Importation des bibliothèques
+```python
+import pandas as pd
+import numpy as np
+from datetime import datetime
+import re
+```
+
+#### Étape 2 : Charger les données
+```python
+def load_data(file_path):
+    """
+    Charge un fichier CSV ou Excel dans un DataFrame Pandas.
+    """
+    if file_path.endswith('.csv'):
+        return pd.read_csv(file_path)
+    elif file_path.endswith('.xls') or file_path.endswith('.xlsx'):
+        return pd.read_excel(file_path)
+    else:
+        raise ValueError("Format de fichier non pris en charge.")
+```
+
+---
+
+#### Étape 3 : Analyse de la fraîcheur
+```python
+def check_freshness(df, date_column, threshold_years=2):
+    """
+    Vérifie si les données sont obsolètes en fonction d'un seuil d'années.
+    """
+    today = datetime.today()
+    df[date_column] = pd.to_datetime(df[date_column], errors='coerce')  # Conversion en format datetime
+    df['Obsolete'] = (today - df[date_column]).dt.days > (threshold_years * 365)  # Condition d'obsolescence
+    return df[['Obsolete', date_column]].value_counts()
+```
+
+---
+
+#### Étape 4 : Analyse des données manquantes
+```python
+def check_missing_data(df, required_columns):
+    """
+    Vérifie la présence de valeurs manquantes dans les colonnes requises.
+    """
+    missing_report = {}
+    for col in required_columns:
+        missing_count = df[col].isnull().sum()
+        missing_percentage = (missing_count / len(df)) * 100
+        missing_report[col] = {"missing_count": missing_count, "missing_percentage": missing_percentage}
+    return pd.DataFrame(missing_report).T  # Retourne un rapport des données manquantes
+```
+
+---
+
+#### Étape 5 : Validation de la cohérence
+##### Validation des codes postaux :
+```python
+def validate_postal_code(df, postal_code_column, valid_length=5):
+    """
+    Vérifie si les codes postaux respectent une longueur valide.
+    """
+    df['Invalid_Code'] = df[postal_code_column].apply(
+        lambda x: len(str(x)) != valid_length if pd.notnull(x) else True
+    )
+    return df[df['Invalid_Code']]
+```
+
+##### Validation des numéros de téléphone :
+```python
+def validate_phone_number(df, phone_column):
+    """
+    Vérifie si les numéros de téléphone respectent un format international.
+    """
+    phone_pattern = r'^\+?[1-9]\d{1,14}$'  # Format E.164
+    df['Invalid_Phone'] = df[phone_column].apply(
+        lambda x: not re.match(phone_pattern, str(x)) if pd.notnull(x) else True
+    )
+    return df[df['Invalid_Phone']]
+```
+
+---
+
+#### Étape 6 : Synthèse des résultats
+```python
+def generate_quality_report(df, date_column, required_columns, postal_code_column, phone_column):
+    """
+    Génère un rapport complet de la qualité des données.
+    """
+    print("=== Analyse de la fraîcheur ===")
+    freshness_report = check_freshness(df, date_column)
+    print(freshness_report)
+
+    print("\n=== Analyse des données manquantes ===")
+    missing_data_report = check_missing_data(df, required_columns)
+    print(missing_data_report)
+
+    print("\n=== Validation des codes postaux ===")
+    postal_code_issues = validate_postal_code(df, postal_code_column)
+    print(postal_code_issues)
+
+    print("\n=== Validation des numéros de téléphone ===")
+    phone_issues = validate_phone_number(df, phone_column)
+    print(phone_issues)
+```
+
+---
+
+#### Étape 7 : Exemple d'utilisation
+##### Fichier CSV fictif :
+Imaginons un fichier `clients.csv` avec les colonnes suivantes :
+- `last_update` : Date de la dernière mise à jour
+- `nom` : Nom du client
+- `prenom` : Prénom du client
+- `adresse` : Adresse postale
+- `code_postal` : Code postal
+- `telephone` : Numéro de téléphone
+
+##### Exemple :
+```python
+# Charger les données
+file_path = "clients.csv"
+df = load_data(file_path)
+
+# Colonnes à vérifier
+date_column = "last_update"
+required_columns = ["nom", "prenom", "adresse", "telephone"]
+postal_code_column = "code_postal"
+phone_column = "telephone"
+
+# Générer le rapport de qualité
+generate_quality_report(df, date_column, required_columns, postal_code_column, phone_column)
+```
+
+---
+
+### **Résultat attendu**
+#### Rapport généré dans la console :
+```plaintext
+=== Analyse de la fraîcheur ===
+Obsolete  last_update
+True      2020-01-01      15
+False     2023-05-10      85
+
+=== Analyse des données manquantes ===
+              missing_count  missing_percentage
+nom                      10                10.0
+prenom                   5                  5.0
+adresse                  15                15.0
+telephone                2                  2.0
+
+=== Validation des codes postaux ===
+    temps   actif code_postal  Invalid_Code
+15  2023    1000  AB123          True
+
+=== Validation des numéros de téléphone ===
+    temps   actif telephone Invalid_Phone
+20  2023    1000   12345       True
+```
+
+---
+
+### **Points forts de ce moteur :**
+1. **Modularité :** Les fonctions sont indépendantes, donc faciles à étendre.
+2. **Compatibilité :** Fonctionne avec CSV et Excel.
+3. **Rapidité :** Exploite les capacités de **Pandas** pour une analyse rapide.
+4. **Extensibilité :** Vous pouvez ajouter d'autres critères de qualité (par exemple, unicité, validité des emails).
+
+---
+
+Si vous souhaitez intégrer ce moteur dans une application (comme Streamlit ou Dash), ou si vous avez des données spécifiques, je peux vous aider à adapter ce code ! 😊
