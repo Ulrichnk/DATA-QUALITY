@@ -1,0 +1,7 @@
+streamlit==1.16.0
+pandas==1.5.3
+numpy==1.23.5
+plotly==5.14.1
+SQLAlchemy==1.4.46
+streamlit-option-menu==0.3.2
+pyarrow==10.0.1
