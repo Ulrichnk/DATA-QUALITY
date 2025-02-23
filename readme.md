@@ -1,0 +1,1 @@
+pour run le projet lancer " streamlit run app.py"
