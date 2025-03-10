@@ -41,9 +41,13 @@ class Expectation:
 
     @staticmethod
     def ExpectColumnValuesToMatchRegex(df, column, regex):
-        """Vérifie que toutes les valeurs d'une colonne respectent une expression régulière."""
-        total_count = df[column].notnull().sum()  # Ignorer les valeurs nulles
-        unexpected_values = df[~df[column].astype(str).str.match(regex, na=False)][column].tolist()
+        """Vérifie que toutes les valeurs non nulles d'une colonne respectent une expression régulière."""
+        # Filtrer uniquement les valeurs non nulles
+        df_nonnull = df[df[column].notnull()]
+        total_count = df_nonnull.shape[0]
+        
+        # Appliquer la regex sur les valeurs non nulles
+        unexpected_values = df_nonnull[~df_nonnull[column].astype(str).str.match(regex)][column].tolist()
         unexpected_count = len(unexpected_values)
         unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
 
@@ -55,51 +59,57 @@ class Expectation:
             "unexpected_list": unexpected_values,
             "success": unexpected_count == 0
         }
-        
+
     @staticmethod
     def ExpectColumnValuesToBeUnique(df, column):
-        """Vérifie que toutes les valeurs d'une colonne sont uniques en ignorant les valeurs manquantes."""
-        non_null_series = df[column].dropna()  # Exclut les NaN
-        total_count = non_null_series.shape[0]
-        duplicated_values = non_null_series[non_null_series.duplicated()].tolist()
-        unexpected_count = len(duplicated_values)
-        unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
+            """Vérifie que toutes les valeurs d'une colonne sont uniques en ignorant les valeurs manquantes."""
+            non_null_series = df[column].dropna()  # Exclut les NaN
+            total_count = non_null_series.shape[0]
+            duplicated_values = non_null_series[non_null_series.duplicated()].tolist()
+            unexpected_count = len(duplicated_values)
+            unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
 
-        return {
-            "check": f"ExpectColumnValuesToBeUnique({column})",
-            "element_count": total_count,
-            "unexpected_count": unexpected_count,
-            "unexpected_percent": unexpected_percent,
-            "unexpected_list": duplicated_values,
-            "success": unexpected_count == 0
-        }
+            return {
+                "check": f"ExpectColumnValuesToBeUnique({column})",
+                "element_count": total_count,
+                "unexpected_count": unexpected_count,
+                "unexpected_percent": unexpected_percent,
+                "unexpected_list": duplicated_values,
+                "success": unexpected_count == 0
+            }
 
-        
+            
     @staticmethod
     def ExpectColumnValuesToBeWithinIQR(df, column, factor=1.5):
-        """Vérifie que les valeurs sont dans une plage normale basée sur l'IQR."""
-        Q1 = df[column].quantile(0.25)
-        Q3 = df[column].quantile(0.75)
-        IQR = Q3 - Q1
-        lower_bound = Q1 - factor * IQR
-        upper_bound = Q3 + factor * IQR
+            """Vérifie que les valeurs sont dans une plage normale basée sur l'IQR."""
+            Q1 = df[column].quantile(0.25)
+            Q3 = df[column].quantile(0.75)
+            IQR = Q3 - Q1
+            lower_bound = Q1 - factor * IQR
+            upper_bound = Q3 + factor * IQR
 
-        outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column].tolist()
-        unexpected_count = len(outliers)
-        unexpected_percent = round((unexpected_count / df[column].notnull().sum()) * 100, 2) if df[column].notnull().sum() > 0 else 0
+            outliers = df[(df[column] < lower_bound) | (df[column] > upper_bound)][column].tolist()
+            unexpected_count = len(outliers)
+            unexpected_percent = round((unexpected_count / df[column].notnull().sum()) * 100, 2) if df[column].notnull().sum() > 0 else 0
 
-        return {
-            "check": f"ExpectColumnValuesToBeWithinIQR({column})",
-            "element_count": df[column].notnull().sum(),
-            "unexpected_count": unexpected_count,
-            "unexpected_percent": unexpected_percent,
-            "unexpected_list": outliers,
-            "success": unexpected_count == 0
-        }
-        
+            return {
+                "check": f"ExpectColumnValuesToBeWithinIQR({column})",
+                "element_count": df[column].notnull().sum(),
+                "unexpected_count": unexpected_count,
+                "unexpected_percent": unexpected_percent,
+                "unexpected_list": outliers,
+                "success": unexpected_count == 0
+            }
+            
     @staticmethod
     def ExpectColumnValuesToBeInSet(df, column, valid_values):
-        """Vérifie que toutes les valeurs d'une colonne appartiennent à une liste prédéfinie."""
+        """Vérifie que toutes les valeurs d'une colonne appartiennent à une liste prédéfinie.
+        Si valid_values est un DataFrame, la première colonne est utilisée pour extraire les valeurs."""
+        
+        # Vérifier si valid_values est un DataFrame et extraire la première colonne si c'est le cas
+        if isinstance(valid_values, pd.DataFrame):
+            valid_values = valid_values.iloc[:, 0].tolist()
+        
         total_count = df[column].notnull().sum()
         invalid_values = df[~df[column].isin(valid_values)][column].tolist()
         unexpected_count = len(invalid_values)
@@ -113,75 +123,81 @@ class Expectation:
             "unexpected_list": invalid_values,
             "success": unexpected_count == 0
         }
-    
+
     @staticmethod
     def ExpectColumnValuesToHaveLengthBetween(df, column, min_length, max_length):
-        """Vérifie que les chaînes de caractères ont une longueur entre min_length et max_length."""
-        total_count = df[column].notnull().sum()
-        invalid_values = df[(df[column].astype(str).str.len() < min_length) | 
-                            (df[column].astype(str).str.len() > max_length)][column].tolist()
-        unexpected_count = len(invalid_values)
-        unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
+            """Vérifie que les chaînes de caractères ont une longueur entre min_length et max_length."""
+            total_count = df[column].notnull().sum()
+            invalid_values = df[(df[column].astype(str).str.len() < min_length) | 
+                                (df[column].astype(str).str.len() > max_length)][column].tolist()
+            unexpected_count = len(invalid_values)
+            unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
 
-        return {
-            "check": f"ExpectColumnValuesToHaveLengthBetween({column}, {min_length}, {max_length})",
-            "element_count": total_count,
-            "unexpected_count": unexpected_count,
-            "unexpected_percent": unexpected_percent,
-            "unexpected_list": invalid_values,
-            "success": unexpected_count == 0
-        }
+            return {
+                "check": f"ExpectColumnValuesToHaveLengthBetween({column}, {min_length}, {max_length})",
+                "element_count": total_count,
+                "unexpected_count": unexpected_count,
+                "unexpected_percent": unexpected_percent,
+                "unexpected_list": invalid_values,
+                "success": unexpected_count == 0
+            }
 
     @staticmethod
     def ExpectColumnValuesToRespectOrder(df, column1, column2):
-        """Vérifie que les valeurs de column1 sont toujours inférieures ou égales à celles de column2."""
-        total_count = df[column1].notnull().sum()
-        invalid_values = df[df[column1] > df[column2]][[column1, column2]].values.tolist()
-        unexpected_count = len(invalid_values)
-        unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
+            """Vérifie que les valeurs de column1 sont toujours inférieures ou égales à celles de column2."""
+            total_count = df[column1].notnull().sum()
+            invalid_values = df[df[column1] > df[column2]][[column1, column2]].values.tolist()
+            unexpected_count = len(invalid_values)
+            unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
 
-        return {
-            "check": f"ExpectColumnValuesToRespectOrder({column1}, {column2})",
-            "element_count": total_count,
-            "unexpected_count": unexpected_count,
-            "unexpected_percent": unexpected_percent,
-            "unexpected_list": invalid_values,
-            "success": unexpected_count == 0
-        }
-        
+            return {
+                "check": f"ExpectColumnValuesToRespectOrder({column1}, {column2})",
+                "element_count": total_count,
+                "unexpected_count": unexpected_count,
+                "unexpected_percent": unexpected_percent,
+                "unexpected_list": invalid_values,
+                "success": unexpected_count == 0
+            }
+            
     @staticmethod
     def ExpectColumnValuesToBeInDateRange(df, column, min_date, max_date):
-        """Vérifie que toutes les dates sont dans la plage spécifiée."""
-        df[column] = pd.to_datetime(df[column], errors='coerce')  # Convertir en date
-        total_count = df[column].notnull().sum()
-        invalid_values = df[(df[column] < min_date) | (df[column] > max_date)][column].tolist()
-        unexpected_count = len(invalid_values)
-        unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
+            # Conversion des limites en datetime
+            min_date = pd.to_datetime(min_date, errors='coerce')
+            max_date = pd.to_datetime(max_date, errors='coerce')
+            
+            print(min_date, max_date)
+            """Vérifie que toutes les dates sont dans la plage spécifiée."""
+            df[column] = pd.to_datetime(df[column], errors='coerce')  # Convertir la colonne en datetime
+            total_count = df[column].notnull().sum()
+            invalid_values = df[(df[column] < min_date) | (df[column] > max_date)][column].tolist()
+            unexpected_count = len(invalid_values)
+            unexpected_percent = round((unexpected_count / total_count) * 100, 2) if total_count > 0 else 0
 
-        return {
-            "check": f"ExpectColumnValuesToBeInDateRange({column}, {min_date}, {max_date})",
-            "element_count": total_count,
-            "unexpected_count": unexpected_count,
-            "unexpected_percent": unexpected_percent,
-            "unexpected_list": invalid_values,
-            "success": unexpected_count == 0
-        }
-        
+            return {
+                "check": f"ExpectColumnValuesToBeInDateRange({column}, {min_date}, {max_date})",
+                "element_count": total_count,
+                "unexpected_count": unexpected_count,
+                "unexpected_percent": unexpected_percent,
+                "unexpected_list": invalid_values,
+                "success": unexpected_count == 0
+            }
+
+                
     @staticmethod
     def ExpectRowCompletenessToBeAboveThreshold(df, threshold=0.8):
-        """Vérifie que les enregistrements(lignes) contiennent au moins un certain pourcentage de valeurs non nulles."""
-        row_completeness = df.notnull().mean(axis=1)  # Pourcentage de colonnes remplies par ligne
-        invalid_rows = df[row_completeness < threshold].index.tolist()
-        unexpected_count = len(invalid_rows)
+                """Vérifie que les enregistrements(lignes) contiennent au moins un certain pourcentage de valeurs non nulles."""
+                row_completeness = df.notnull().mean(axis=1)  # Pourcentage de colonnes remplies par ligne
+                invalid_rows = df[row_completeness < threshold].index.tolist()
+                unexpected_count = len(invalid_rows)
 
-        return {
-            "check": f"ExpectRowCompletenessToBeAboveThreshold({threshold * 100}%)",
-            "element_count": df.shape[0],
-            "unexpected_count": unexpected_count,
-            "unexpected_percent": round((unexpected_count / df.shape[0]) * 100, 2) if df.shape[0] > 0 else 0,
-            "unexpected_list": invalid_rows,
-            "success": unexpected_count == 0
-        }
+                return {
+                    "check": f"ExpectRowCompletenessToBeAboveThreshold({threshold * 100}%)",
+                    "element_count": df.shape[0],
+                    "unexpected_count": unexpected_count,
+                    "unexpected_percent": round((unexpected_count / df.shape[0]) * 100, 2) if df.shape[0] > 0 else 0,
+                    "unexpected_list": invalid_rows,
+                    "success": unexpected_count == 0
+                }
 
 
 

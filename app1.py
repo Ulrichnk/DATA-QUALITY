@@ -143,9 +143,24 @@ elif selected == "📊 Analyse Qualité":
 
         # Pour ExpectColumnValuesToBeInSet
         if function_choice == "ExpectColumnValuesToBeInSet":
-            valid_values_str = st.text_input("🔤 Valeurs autorisées (séparées par une virgule) :", value="A,B,C")
-            # Transformation en liste en retirant les espaces éventuels
-            params["valid_values"] = [v.strip() for v in valid_values_str.split(",") if v.strip()]
+            # Choix du mode d'entrée pour les valeurs autorisées
+            input_mode = st.radio("Sélectionnez la source des valeurs autorisées :", ["Saisie manuelle", "Téléchargement de fichier"])
+
+            if input_mode == "Saisie manuelle":
+                valid_values_str = st.text_input("🔤 Valeurs autorisées (séparées par une virgule) :", value="A,B,C")
+                params["valid_values"] = [v.strip() for v in valid_values_str.split(",") if v.strip()]
+            else:
+                uploaded_file = st.file_uploader("Télécharger un fichier CSV ou Excel contenant les valeurs autorisées", type=["csv", "xlsx"])
+                if uploaded_file is not None:
+                    import pandas as pd
+                    if uploaded_file.name.endswith("csv"):
+                        df_valid_values = pd.read_csv(uploaded_file)
+                    else:
+                        df_valid_values = pd.read_excel(uploaded_file)
+                    # Extraction de la première colonne pour obtenir la liste des valeurs autorisées
+                    params["valid_values"] = df_valid_values.iloc[:, 0].tolist()
+                else:
+                    st.warning("Veuillez télécharger un fichier CSV ou Excel valide pour continuer.")
 
         # Pour ExpectColumnValuesToHaveLengthBetween
         if function_choice == "ExpectColumnValuesToHaveLengthBetween":
@@ -509,10 +524,37 @@ elif selected == "Rapport Qualité":
                         elif func == "ExpectColumnValuesToBeWithinIQR":
                             factor = st.number_input(f"Facteur pour {col} ({func})", value=1.5, key=f"{col}_{func}_factor")
                             custom_config[col][func] = {"factor": factor}
+                            
+                            
                         elif func == "ExpectColumnValuesToBeInSet":
-                            valid_values_str = st.text_input(f"Valeurs autorisées pour {col} ({func}) (séparées par une virgule)", value="", key=f"{col}_{func}_values")
-                            valid_values = [v.strip() for v in valid_values_str.split(",") if v.strip()]
+                            input_mode = st.radio(f"Source des valeurs autorisées pour {col} ({func})", 
+                                                ["Saisie manuelle", "Téléchargement de fichier"], 
+                                                key=f"{col}_{func}_input_mode")
+                            if input_mode == "Saisie manuelle":
+                                valid_values_str = st.text_input(f"🔤 Valeurs autorisées pour {col} (séparées par une virgule) :", 
+                                                                value="A,B,C", 
+                                                                key=f"{col}_{func}_valid_values")
+                                valid_values = [v.strip() for v in valid_values_str.split(",") if v.strip()]
+                            else:
+                                uploaded_file = st.file_uploader(f"Télécharger un fichier CSV ou Excel contenant les valeurs autorisées pour {col}", 
+                                                                type=["csv", "xlsx"], 
+                                                                key=f"{col}_{func}_file")
+                                if uploaded_file is not None:
+                                    import pandas as pd
+                                    if uploaded_file.name.endswith("csv"):
+                                        df_valid_values = pd.read_csv(uploaded_file)
+                                    else:
+                                        df_valid_values = pd.read_excel(uploaded_file)
+                                    valid_values = df_valid_values.iloc[:, 0].tolist()
+                                else:
+                                    valid_values = None
+                                    st.warning("Veuillez télécharger un fichier CSV ou Excel valide pour continuer.")
                             custom_config[col][func] = {"valid_values": valid_values}
+                                 
+                           
+                           
+                            
+                            
                         elif func == "ExpectColumnValuesToHaveLengthBetween":
                             min_length = st.number_input(f"Longueur minimale pour {col} ({func})", value=1, step=1, key=f"{col}_{func}_min_length")
                             max_length = st.number_input(f"Longueur maximale pour {col} ({func})", value=100, step=1, key=f"{col}_{func}_max_length")
