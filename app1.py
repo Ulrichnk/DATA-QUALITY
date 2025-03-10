@@ -17,7 +17,7 @@ with st.sidebar:
     st.image("https://upload.wikimedia.org/wikipedia/commons/6/6b/Pandas_logo.svg", width=100)
     selected = option_menu(
         menu_title="Navigation",
-        options=["🏠 Accueil", "📊 Analyse Qualité", "⚙️ Paramètres", "Rapport Qualité"],
+        options=["🏠 Accueil", "📊 Analyse Qualité", "Rapport Qualité"],
         icons=["house", "bar-chart", "gear"],
         menu_icon="cast",
         default_index=0,
@@ -28,8 +28,7 @@ with st.sidebar:
 
 df = None
 if data_source_type == "Fichier CSV":
-    uploaded_file = st.sidebar.file_uploader("📥 Charger un fichier CSV", type=["csv","xls", "xlsx"])
-
+    uploaded_file = st.sidebar.file_uploader("📥 Charger un fichier CSV", type=["csv", "xls", "xlsx"])
     if uploaded_file is not None:
         ext = uploaded_file.name.split('.')[-1].lower()
         try:
@@ -65,32 +64,224 @@ elif data_source_type == "Base SQL":
 
 # ---- Page Accueil ----
 if selected == "🏠 Accueil":
-    st.title("📊 Quality Dashboard")
-    st.write("Analyse de la qualité des données avec la classe `Expectation` et analyses complémentaires.")
+    st.title("🏠 Accueil")
 
     # KPI Cards
-    col1, col2, col3, col4 = st.columns(4)
+    #col1, col2, col3, col4 = st.columns(4)
+    col1, col4 = st.columns(2)
+
     with col1:
         st.metric(label="📈 Nombre d'enregistrements", value=df.shape[0])
-    with col2:
-        st.metric(label="✅ Taux de validité", value="95%", delta="↑ 2%")
-    with col3:
-        st.metric(label="❌ Taux d'erreurs", value="5%", delta="↓ 1%")
+    # with col2:
+    #     #st.metric(label="✅ Taux de validité", value="95%", delta="↑ 2%")
+    #     print("test")
+    # with col3:
+    #     #st.metric(label="❌ Taux d'erreurs", value="5%", delta="↓ 1%")
+    #     print("test")
     with col4:
         st.metric(label="🕒 Dernière mise à jour", value=datetime.today().strftime("%Y-%m-%d"))
+
+    # ---- Analyse Complémentaire des Données ----
+    st.subheader("Analyse Complémentaire des Données")
+
+    # 1. Fraîcheur de la donnée en années
+    st.markdown("### Fraîcheur de la donnée")
+    freshness_col = st.selectbox("Sélectionnez la colonne de date", options=df.columns.tolist(), key="freshness_analysis")
+    threshold_years = st.number_input("Définir le seuil de mise à jour (en années)", min_value=0, value=1, step=1)
+    freshness_ref = st.date_input("Choisir une date de référence", value=datetime.today(), key="ref_date")
+    try:
+        df[freshness_col] = pd.to_datetime(df[freshness_col], errors="coerce")
+        ref_date = pd.to_datetime(freshness_ref)
+        df["days_since_ref"] = (ref_date - df[freshness_col]).dt.days
+        df["years_since_ref"] = df["days_since_ref"] / 365.0  # conversion approximative en années
+
+        # KPI pour la fraîcheur
+        avg_years = df["years_since_ref"].mean()
+        median_years = df["years_since_ref"].median()
+        std_years = df["years_since_ref"].std()
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Moyenne (années)", f"{avg_years:.2f} ans")
+        col2.metric("Médiane (années)", f"{median_years:.2f} ans")
+        col3.metric("Écart-type (années)", f"{std_years:.2f} ans")
+
+        # Histogramme de la distribution de la fraîcheur
+        fig_hist = px.histogram(df, x="years_since_ref", nbins=30, title="Distribution de la fraîcheur des données (en années)")
+        st.plotly_chart(fig_hist, use_container_width=True)
+
+        # Graphique cumulatif de la fraîcheur
+        df_sorted = df.sort_values("years_since_ref")
+        df_sorted["cumulative"] = np.arange(1, df_sorted.shape[0] + 1) / df_sorted.shape[0]
+        fig_line = px.line(df_sorted, x="years_since_ref", y="cumulative", 
+                           title="Distribution cumulative de la fraîcheur des données")
+        st.plotly_chart(fig_line, use_container_width=True)
+
+        # Enregistrements nécessitant une mise à jour
+        outdated_count = (df["years_since_ref"] > threshold_years).sum()
+        total_records = df.shape[0]
+        st.info(f"{outdated_count} enregistrements sur {total_records} nécessitent une mise à jour (plus de {threshold_years} ans).")
+    except Exception as e:
+        st.error(f"Erreur lors du calcul de la fraîcheur : {e}")
+
+    st.write("---")
+
+    # 2. Présence de la donnée
+    st.markdown("### Présence de la donnée")
+    missing_stats = df.isnull().mean() * 100
+    missing_stats = missing_stats.sort_values(ascending=False)
+    st.write("Pourcentage de valeurs manquantes par colonne :")
+    fig_missing = px.bar(x=missing_stats.index, y=missing_stats.values,
+                         labels={'x': 'Colonne', 'y': 'Pourcentage manquant (%)'},
+                         title="Pourcentage de données manquantes par colonne")
+    st.plotly_chart(fig_missing, use_container_width=True)
+
+    missing_threshold = st.slider("Seuil pour identifier des enregistrements critiques (en % de données manquantes)",
+                                  min_value=0.0, max_value=100.0, value=50.0)
+    df["missing_percentage"] = df.isnull().mean(axis=1) * 100
+    critical_records = df[df["missing_percentage"] >= missing_threshold]
+    st.write(f"Nombre d'enregistrements avec au moins {missing_threshold}% de données manquantes : {critical_records.shape[0]}")
+    if not critical_records.empty:
+        with st.expander("Afficher les enregistrements critiques"):
+            st.dataframe(critical_records)
+
+    st.write("---")
+
+    st.markdown("### Cohérence de la donnée : Codes Postaux")
+    postal_cols = [col for col in df.columns if "postal" in col.lower() or "code" in col.lower()]
+    if postal_cols:
+        postal_col = st.selectbox("Sélectionnez la colonne des codes postaux", options=postal_cols, key="postal_code")
+        
+        validation_method = st.radio(
+            "Méthode de validation des codes postaux",
+            options=["Regex", "Fichier de codes valides", "Expectation (ensemble)"],
+            key="postal_validation"
+        )
+        
+        if validation_method == "Regex":
+            regex_postal = st.text_input("Entrez la règle Regex pour les codes postaux", value=r"^\d{5}$", key="postal_regex")
+            df["postal_valid"] = df[postal_col].astype(str).str.match(regex_postal)
+            
+        elif validation_method == "Fichier de codes valides":
+            uploaded_postal_file = st.file_uploader("Chargez le fichier contenant les codes postaux valides", type=["csv", "xls", "xlsx", "txt"], key="postal_file")
+            if uploaded_postal_file is not None:
+                try:
+                    if uploaded_postal_file.name.split('.')[-1].lower() in ["csv"]:
+                        valid_postal_df = pd.read_csv(uploaded_postal_file)
+                    elif uploaded_postal_file.name.split('.')[-1].lower() in ["xls", "xlsx"]:
+                        valid_postal_df = pd.read_excel(uploaded_postal_file)
+                    else:
+                        valid_postal_df = pd.DataFrame([line.strip() for line in uploaded_postal_file.getvalue().decode("utf-8").splitlines()], columns=["code"])
+                    valid_codes = set(valid_postal_df.iloc[:, 0].astype(str))
+                    df["postal_valid"] = df[postal_col].astype(str).apply(lambda x: x in valid_codes)
+                    st.success("Fichier de codes postaux chargé avec succès.")
+                except Exception as e:
+                    st.error(f"Erreur lors du chargement du fichier de codes postaux : {e}")
+                    df["postal_valid"] = False
+            else:
+                st.info("Veuillez charger un fichier de codes postaux pour la validation ou choisissez une autre méthode.")
+                df["postal_valid"] = False
+
+        elif validation_method == "Expectation (ensemble)":
+            # Utilisation de la logique de la fonction ExpectColumnValuesToBeInSet
+            input_mode = st.radio(
+                f"Source des valeurs autorisées pour {postal_col} (ExpectColumnValuesToBeInSet)",
+                ["Saisie manuelle", "Téléchargement de fichier"],
+                key=f"{postal_col}_ExpectColumnValuesToBeInSet_input_mode"
+            )
+            if input_mode == "Saisie manuelle":
+                valid_values_str = st.text_input(
+                    f"🔤 Valeurs autorisées pour {postal_col} (séparées par une virgule) :",
+                    value="75000,69000,13000",
+                    key=f"{postal_col}_ExpectColumnValuesToBeInSet_valid_values"
+                )
+                valid_values = [v.strip() for v in valid_values_str.split(",") if v.strip()]
+            else:
+                uploaded_file = st.file_uploader(
+                    f"Télécharger un fichier CSV ou Excel contenant les valeurs autorisées pour {postal_col}",
+                    type=["csv", "xlsx"],
+                    key=f"{postal_col}_ExpectColumnValuesToBeInSet_file"
+                )
+                if uploaded_file is not None:
+                    if uploaded_file.name.endswith("csv"):
+                        df_valid_values = pd.read_csv(uploaded_file)
+                    else:
+                        df_valid_values = pd.read_excel(uploaded_file)
+                    valid_values = df_valid_values.iloc[:, 0].tolist()
+                else:
+                    valid_values = None
+                    st.warning("Veuillez télécharger un fichier CSV ou Excel valide pour continuer.")
+                    
+            if(valid_values is not None):
+            
+                # Application de l'Expectation pour vérifier que toutes les valeurs appartiennent à l'ensemble
+                result = Expectation.ExpectColumnValuesToBeInSet(df, postal_col, valid_values)
+                #st.write("Résultat de la vérification ExpectColumnValuesToBeInSet :", result)
+
+                # Mise à jour de la colonne de validation
+                df["postal_valid"] = df[postal_col].isin(valid_values)
+        
+        # Calcul des métriques de validation
+        valid_count = df["postal_valid"].sum()
+        invalid_count = df.shape[0] - valid_count
+        st.metric("Taux de codes postaux valides", f"{(valid_count / df.shape[0]) * 100:.2f}%")
+        
+        if invalid_count > 0:
+            st.warning(f"{invalid_count} codes postaux non conformes détectés.")
+            with st.expander("Afficher les codes postaux non conformes"):
+                st.dataframe(df.loc[df["postal_valid"] == False, [postal_col]])
+        else:
+            st.success("Tous les codes postaux respectent le format attendu.")
+
+        fig_postal_pie = px.pie(
+            names=["Valides", "Non valides"],
+            values=[valid_count, invalid_count],
+            title="Répartition des codes postaux"
+        )
+        st.plotly_chart(fig_postal_pie, use_container_width=True)
+
+        fig_postal_bar = px.bar(
+            x=["Valides", "Non valides"],
+            y=[valid_count, invalid_count],
+            labels={'x': 'Statut', 'y': 'Nombre'},
+            title="Nombre de codes postaux valides vs non valides"
+        )
+        st.plotly_chart(fig_postal_bar, use_container_width=True)
+    else:
+        st.info("Aucune colonne de codes postaux détectée dans les données.")
+
+#--------------------------------------------------------------------------
+    st.write("---")
+
+    # 4. Suggestions d'imputation pour les valeurs manquantes
+    st.markdown("### Suggestions d'imputation")
+    impute_choice = st.selectbox("Choisissez une méthode d'imputation", options=["Aucune", "Moyenne", "Médiane", "Mode", "Suppression"])
+    if impute_choice != "Aucune":
+        imputed_df = df.copy()
+        if impute_choice in ["Moyenne", "Médiane"]:
+            for col in imputed_df.select_dtypes(include=np.number).columns:
+                if impute_choice == "Moyenne":
+                    imputed_df[col].fillna(imputed_df[col].mean(), inplace=True)
+                else:
+                    imputed_df[col].fillna(imputed_df[col].median(), inplace=True)
+        elif impute_choice == "Mode":
+            for col in imputed_df.columns:
+                try:
+                    imputed_df[col].fillna(imputed_df[col].mode()[0], inplace=True)
+                except Exception as e:
+                    st.error(f"Erreur lors de l'imputation par le mode pour la colonne {col} : {e}")
+        elif impute_choice == "Suppression":
+            imputed_df = imputed_df.dropna()
+        st.success(f"Imputation réalisée avec la méthode : {impute_choice}")
+        with st.expander("Aperçu des données après imputation"):
+            st.dataframe(imputed_df.head())
 
 # ---- Page Analyse Qualité ----
 elif selected == "📊 Analyse Qualité":
     st.title("📊 Analyse de la Qualité des Données")
 
-    # Création de deux onglets :
-    tab_expect, tab_complement = st.tabs(["Vérification par Expectation", "Analyse Complémentaire"])
-
-    # ----- Onglet 1 : Vérification par Expectation -----
-    with tab_expect:
+    # Création d'un onglet pour la vérification par Expectation
+    tab_expect=True
+    if(tab_expect):
         st.subheader("Vérification des règles de qualité avec Expectation")
-
-        # Liste complète des fonctions de vérification disponibles
         functions = [
             "ExpectColumnValuesToNotBeNull",
             "ExpectColumnValuesToBeBetween",
@@ -104,10 +295,8 @@ elif selected == "📊 Analyse Qualité":
             "ExpectRowCompletenessToBeAboveThreshold"
         ]
         function_choice = st.selectbox("📌 Choisissez une fonction de vérification :", functions)
+        params = {}
 
-        params = {}  # Dictionnaire qui contiendra les paramètres saisis
-
-        # Pour la plupart des fonctions, on demande la sélection d'une colonne.
         if function_choice in [
             "ExpectColumnValuesToNotBeNull",
             "ExpectColumnValuesToBeBetween",
@@ -121,64 +310,51 @@ elif selected == "📊 Analyse Qualité":
             col_selected = st.selectbox("Sélectionnez une colonne :", df.columns.tolist())
             params["column"] = col_selected
 
-        # Pour la fonction qui vérifie l'ordre entre deux colonnes
         if function_choice == "ExpectColumnValuesToRespectOrder":
             col1 = st.selectbox("Sélectionnez la première colonne :", df.columns.tolist(), key="col1_order")
             col2 = st.selectbox("Sélectionnez la seconde colonne :", df.columns.tolist(), key="col2_order")
             params["column1"] = col1
             params["column2"] = col2
 
-        # Pour ExpectColumnValuesToBeBetween
         if function_choice == "ExpectColumnValuesToBeBetween":
             params["min_value"] = st.number_input("🔢 Valeur minimale :", value=0.0)
             params["max_value"] = st.number_input("🔢 Valeur maximale :", value=100.0)
 
-        # Pour ExpectColumnValuesToMatchRegex
         if function_choice == "ExpectColumnValuesToMatchRegex":
             params["regex"] = st.text_input("🔤 Regex :", value=r"^[\w\.-]+@[\w\.-]+\.\w+$")
 
-        # Pour ExpectColumnValuesToBeWithinIQR
         if function_choice == "ExpectColumnValuesToBeWithinIQR":
             params["factor"] = st.number_input("🔢 Facteur (par défaut 1.5) :", value=1.5)
 
-        # Pour ExpectColumnValuesToBeInSet
         if function_choice == "ExpectColumnValuesToBeInSet":
-            # Choix du mode d'entrée pour les valeurs autorisées
             input_mode = st.radio("Sélectionnez la source des valeurs autorisées :", ["Saisie manuelle", "Téléchargement de fichier"])
-
             if input_mode == "Saisie manuelle":
                 valid_values_str = st.text_input("🔤 Valeurs autorisées (séparées par une virgule) :", value="A,B,C")
                 params["valid_values"] = [v.strip() for v in valid_values_str.split(",") if v.strip()]
             else:
                 uploaded_file = st.file_uploader("Télécharger un fichier CSV ou Excel contenant les valeurs autorisées", type=["csv", "xlsx"])
                 if uploaded_file is not None:
-                    import pandas as pd
                     if uploaded_file.name.endswith("csv"):
                         df_valid_values = pd.read_csv(uploaded_file)
                     else:
                         df_valid_values = pd.read_excel(uploaded_file)
-                    # Extraction de la première colonne pour obtenir la liste des valeurs autorisées
                     params["valid_values"] = df_valid_values.iloc[:, 0].tolist()
                 else:
                     st.warning("Veuillez télécharger un fichier CSV ou Excel valide pour continuer.")
 
-        # Pour ExpectColumnValuesToHaveLengthBetween
         if function_choice == "ExpectColumnValuesToHaveLengthBetween":
             params["min_length"] = st.number_input("🔢 Longueur minimale :", value=1, step=1)
             params["max_length"] = st.number_input("🔢 Longueur maximale :", value=100, step=1)
 
-        # Pour ExpectColumnValuesToBeInDateRange
         if function_choice == "ExpectColumnValuesToBeInDateRange":
             params["min_date"] = st.date_input("📅 Date minimale :", value=datetime(2000, 1, 1))
             params["max_date"] = st.date_input("📅 Date maximale :", value=datetime.today())
 
-        # Pour ExpectRowCompletenessToBeAboveThreshold (n'a pas besoin de sélectionner de colonne)
         if function_choice == "ExpectRowCompletenessToBeAboveThreshold":
             params["threshold"] = st.slider("🔢 Seuil de complétude par ligne :", min_value=0.0, max_value=1.0, value=0.8)
 
         if st.button("🚀 Lancer la vérification"):
             with DataFrameContext(df) as ctx:
-                # Récupération dynamique de la fonction à appliquer
                 func = getattr(Expectation, function_choice)
                 try:
                     ctx.apply_expectation(func, **params)
@@ -188,19 +364,30 @@ elif selected == "📊 Analyse Qualité":
             st.write("### Rapport de validation")
             st.dataframe(quality_report)
 
-            # Visualisation simple : graphique en barres du nombre d'erreurs par règle
             if not quality_report.empty:
-                fig_bar = px.bar(quality_report, x="check", y="unexpected_count", 
-                                 title="Nombre d'erreurs détectées par règle",
-                                 color="unexpected_count", color_continuous_scale="reds")
-                st.plotly_chart(fig_bar, use_container_width=True)
+                # Calcul global du pourcentage d'erreur (unexpected)
+                total_elements = quality_report['element_count'].sum()
+                total_unexpected = quality_report['unexpected_count'].sum()
+                overall_unexpected_pct = round((total_unexpected / total_elements) * 100, 2) if total_elements > 0 else 0
+                overall_conform_pct = round(100 - overall_unexpected_pct, 2)
                 
-                # Camembert de la répartition des tests réussis et échoués
-                fig_pie = px.pie(quality_report, names="success", title="Répartition des tests réussis et échoués",
-                                 color="success", color_discrete_map={True: "green", False: "red"})
+                df_percentages = pd.DataFrame({
+                    'Statut': ['Erreurs', 'Conformes'],
+                    'Pourcentage': [overall_unexpected_pct, overall_conform_pct]
+                })
+                
+                fig_pie = px.pie(
+                    df_percentages, 
+                    names='Statut', 
+                    values='Pourcentage',
+                    title="Répartition globale des tests",
+                    color='Statut', 
+                    color_discrete_map={'Erreurs': 'red', 'Conformes': 'green'},
+                    hover_data=['Pourcentage']
+                )
+                fig_pie.update_traces(textposition='inside', textinfo='percent+label')
                 st.plotly_chart(fig_pie, use_container_width=True)
-                
-                # Détail des erreurs détectées
+
                 st.write("### Détails des erreurs détectées")
                 for _, row in quality_report.iterrows():
                     if not row["success"]:
@@ -210,290 +397,14 @@ elif selected == "📊 Analyse Qualité":
                             st.write(f"**Valeurs problématiques** : {row['unexpected_list']}")
                 if quality_report["unexpected_count"].sum() == 0:
                     st.success("✅ Aucune anomalie détectée !")
-
-    # ----- Onglet 2 : Analyse Complémentaire -----
-    # with tab_complement:
-    #     st.subheader("Analyse Complémentaire des Données")
-
-    #     # Calcul des indicateurs de base
-    #     total_values = df.shape[0] * df.shape[1]
-    #     missing_percent = (df.isnull().sum().sum() / total_values) * 100
-    #     duplicate_percent = (df.shape[0] - df.drop_duplicates().shape[0]) / df.shape[0] * 100
-
-    #     col1, col2 = st.columns(2)
-    #     col1.metric("Valeurs Manquantes", f"{missing_percent:.2f}%")
-    #     col2.metric("Doublons", f"{duplicate_percent:.2f}%")
-        
-    #     st.write("### Aperçu des données")
-    #     st.dataframe(df.head())
-        
-    #     st.markdown(f"**Dimensions des données** : {df.shape[0]} lignes et {df.shape[1]} colonnes")
-        
-    #     types_df = pd.DataFrame({
-    #         "Variable": df.columns,
-    #         "Type": df.dtypes.astype(str)
-    #     })
-    #     st.write("### Types des Variables")
-    #     st.dataframe(types_df)
-
-    #     st.write("---")
-    #     st.subheader("Analyse Statistique")
-    #     analysis_cols = st.multiselect("Sélectionnez les colonnes pour le résumé", options=df.columns.tolist())
-    #     if analysis_cols:
-    #         st.write("#### Résumé statistique")
-    #         st.dataframe(df[analysis_cols].describe(include="all").T)
-    #     else:
-    #         st.info("Veuillez sélectionner des colonnes pour l'analyse statistique.")
-        
-    #     missing_cols = st.multiselect("Sélectionnez les colonnes à analyser pour les valeurs manquantes", options=df.columns.tolist(), key="missing_analysis")
-    #     if missing_cols:
-    #         st.write("#### Valeurs manquantes par colonne")
-    #         missing_counts = df[missing_cols].isnull().sum().to_frame(name="Missing Count")
-    #         st.dataframe(missing_counts)
-    #     else:
-    #         st.info("Veuillez sélectionner des colonnes pour analyser les valeurs manquantes.")
-
-    #     st.write("---")
-    #     st.subheader("Analyse de la Fraîcheur des Données")
-    #     freshness_col = st.selectbox("Sélectionnez la colonne de date", options=df.columns.tolist(), key="freshness_analysis")
-    #     freshness_ref = st.date_input("Choisir une date de référence", value=datetime.today(), key="ref_date")
-    #     try:
-    #         df[freshness_col] = pd.to_datetime(df[freshness_col], errors="coerce")
-    #         ref_date = pd.to_datetime(freshness_ref)
-    #         df["days_since_ref"] = (ref_date - df[freshness_col]).dt.days
-    #         st.write("#### Fraîcheur des données")
-    #         st.dataframe(df[[freshness_col, "days_since_ref"]].head())
-    #     except Exception as e:
-    #         st.error(f"Erreur lors du calcul de la fraîcheur : {e}")
-        
-    #     st.write("---")
-    #     st.subheader("Visualisation Graphique")
-    #     graph_type = st.selectbox("Choisir un type de graphique", options=["Histogramme", "Boxplot", "Camembert"], key="graph_type")
-    #     graph_cols = st.multiselect("Sélectionner la ou les colonnes", options=df.columns.tolist(), key="graph_cols")
-    #     if st.button("Tracer le graphique", key="plot_graph"):
-    #         figures = []
-    #         if graph_type == "Histogramme":
-    #             for col in graph_cols:
-    #                 fig = px.histogram(df, x=col, nbins=30,
-    #                                    title=f"Histogramme de {col}",
-    #                                    labels={col: col})
-    #                 figures.append(fig)
-    #         elif graph_type == "Boxplot":
-    #             if len(graph_cols) == 1:
-    #                 col = graph_cols[0]
-    #                 fig = px.box(df, y=col,
-    #                              title=f"Boxplot de {col}",
-    #                              labels={col: col})
-    #                 figures.append(fig)
-    #             elif len(graph_cols) > 1:
-    #                 df_long = df[graph_cols].melt(var_name="variable", value_name="value")
-    #                 fig = px.box(df_long, x="variable", y="value",
-    #                              title="Boxplot combiné",
-    #                              labels={"variable": "Variable", "value": "Valeur"})
-    #                 figures.append(fig)
-    #         elif graph_type == "Camembert":
-    #             for col in graph_cols:
-    #                 df_count = df[col].value_counts(dropna=True).reset_index()
-    #                 df_count.columns = [col, "Freq"]
-    #                 fig = px.pie(df_count, names=col, values="Freq",
-    #                              title=f"Camembert de {col}")
-    #                 figures.append(fig)
-            
-    #         if len(figures) == 1:
-    #             st.plotly_chart(figures[0], use_container_width=True)
-    #         elif len(figures) > 1:
-    #             ncols = 2
-    #             nrows = int(np.ceil(len(figures) / ncols))
-    #             fig_combined = make_subplots(rows=nrows, cols=ncols, subplot_titles=[f.layout.title.text for f in figures])
-    #             for idx, fig in enumerate(figures):
-    #                 row = idx // ncols + 1
-    #                 col = idx % ncols + 1
-    #                 for trace in fig.data:
-    #                     fig_combined.add_trace(trace, row=row, col=col)
-    #                 fig_combined.update_xaxes(title_text=fig.layout.xaxis.title.text, row=row, col=col)
-    #                 fig_combined.update_yaxes(title_text=fig.layout.yaxis.title.text, row=row, col=col)
-    #             fig_combined.update_layout(height=300 * nrows, showlegend=False)
-    #             st.plotly_chart(fig_combined, use_container_width=True)
-
-# ---- Analyse Complémentaire des Données ----
-    with tab_complement:
-        st.subheader("Analyse Complémentaire des Données")
-
-        # ================================================================
-        # 1. Fraîcheur de la donnée en années
-        st.markdown("### Fraîcheur de la donnée")
-        freshness_col = st.selectbox("Sélectionnez la colonne de date", options=df.columns.tolist(), key="freshness_analysis")
-        threshold_years = st.number_input("Définir le seuil de mise à jour (en années)", min_value=0, value=1, step=1)
-        freshness_ref = st.date_input("Choisir une date de référence", value=datetime.today(), key="ref_date")
-        try:
-            df[freshness_col] = pd.to_datetime(df[freshness_col], errors="coerce")
-            ref_date = pd.to_datetime(freshness_ref)
-            df["days_since_ref"] = (ref_date - df[freshness_col]).dt.days
-            df["years_since_ref"] = df["days_since_ref"] / 365.0  # conversion approximative en années
-            
-            # KPI pour la fraîcheur
-            avg_years = df["years_since_ref"].mean()
-            median_years = df["years_since_ref"].median()
-            std_years = df["years_since_ref"].std()
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Moyenne (années)", f"{avg_years:.2f} ans")
-            col2.metric("Médiane (années)", f"{median_years:.2f} ans")
-            col3.metric("Écart-type (années)", f"{std_years:.2f} ans")
-            
-            # Histogramme de la distribution de la fraîcheur
-            fig_hist = px.histogram(df, x="years_since_ref", nbins=30, title="Distribution de la fraîcheur des données (en années)")
-            st.plotly_chart(fig_hist, use_container_width=True)
-            
-            # Graphique cumulatif de la fraîcheur
-            df_sorted = df.sort_values("years_since_ref")
-            df_sorted["cumulative"] = np.arange(1, df_sorted.shape[0] + 1) / df_sorted.shape[0]
-            fig_line = px.line(df_sorted, x="years_since_ref", y="cumulative", 
-                            title="Distribution cumulative de la fraîcheur des données")
-            st.plotly_chart(fig_line, use_container_width=True)
-            
-            # Enregistrements nécessitant une mise à jour (seuil en années)
-            outdated_count = (df["years_since_ref"] > threshold_years).sum()
-            total_records = df.shape[0]
-            st.info(f"{outdated_count} enregistrements sur {total_records} nécessitent une mise à jour (plus de {threshold_years} ans).")
-        except Exception as e:
-            st.error(f"Erreur lors du calcul de la fraîcheur : {e}")
-        
-        st.write("---")
-
-        # ================================================================
-        # 2. Présence de la donnée
-        st.markdown("### Présence de la donnée")
-        
-        # Pourcentage de valeurs manquantes par colonne
-        missing_stats = df.isnull().mean() * 100  # pourcentage par colonne
-        missing_stats = missing_stats.sort_values(ascending=False)
-        st.write("Pourcentage de valeurs manquantes par colonne :")
-        fig_missing = px.bar(x=missing_stats.index, y=missing_stats.values,
-                            labels={'x': 'Colonne', 'y': 'Pourcentage manquant (%)'},
-                            title="Pourcentage de données manquantes par colonne")
-        st.plotly_chart(fig_missing, use_container_width=True)
-        
-        # Identification des enregistrements critiques (taux élevé de données manquantes)
-        missing_threshold = st.slider("Seuil pour identifier des enregistrements critiques (en % de données manquantes)",
-                                    min_value=0.0, max_value=100.0, value=50.0)
-        df["missing_percentage"] = df.isnull().mean(axis=1) * 100
-        critical_records = df[df["missing_percentage"] >= missing_threshold]
-        st.write(f"Nombre d'enregistrements avec au moins {missing_threshold}% de données manquantes : {critical_records.shape[0]}")
-        if not critical_records.empty:
-            with st.expander("Afficher les enregistrements critiques"):
-                st.dataframe(critical_records)
-        
-        st.write("---")
-        
-        # ================================================================
-        # 3. Cohérence de la donnée (Codes Postaux)
-        st.markdown("### Cohérence de la donnée : Codes Postaux")
-        postal_cols = [col for col in df.columns if "postal" in col.lower() or "code" in col.lower()]
-        if postal_cols:
-            postal_col = st.selectbox("Sélectionnez la colonne des codes postaux", options=postal_cols, key="postal_code")
-            validation_method = st.radio("Méthode de validation des codes postaux", options=["Regex", "Fichier de codes valides"], key="postal_validation")
-            
-            if validation_method == "Regex":
-                regex_postal = st.text_input("Entrez la règle Regex pour les codes postaux", value=r"^\d{5}$", key="postal_regex")
-                df["postal_valid"] = df[postal_col].astype(str).str.match(regex_postal)
-            else:
-                uploaded_postal_file = st.file_uploader("Chargez le fichier contenant les codes postaux valides", type=["csv", "xls", "xlsx", "txt"], key="postal_file")
-                if uploaded_postal_file is not None:
-                    try:
-                        # Supposons que le fichier contient une colonne unique avec les codes postaux
-                        if uploaded_postal_file.name.split('.')[-1].lower() in ["csv"]:
-                            valid_postal_df = pd.read_csv(uploaded_postal_file)
-                        elif uploaded_postal_file.name.split('.')[-1].lower() in ["xls", "xlsx"]:
-                            valid_postal_df = pd.read_excel(uploaded_postal_file)
-                        else:
-                            valid_postal_df = pd.DataFrame([line.strip() for line in uploaded_postal_file.getvalue().decode("utf-8").splitlines()], columns=["code"])
-                        
-                        # Extraction des codes valides sous forme de set
-                        valid_codes = set(valid_postal_df.iloc[:, 0].astype(str))
-                        df["postal_valid"] = df[postal_col].astype(str).apply(lambda x: x in valid_codes)
-                        st.success("Fichier de codes postaux chargé avec succès.")
-                    except Exception as e:
-                        st.error(f"Erreur lors du chargement du fichier de codes postaux : {e}")
-                        df["postal_valid"] = False
-                else:
-                    st.info("Veuillez charger un fichier de codes postaux pour la validation ou choisissez la méthode Regex.")
-                    df["postal_valid"] = False
-            
-            valid_count = df["postal_valid"].sum()
-            invalid_count = df.shape[0] - valid_count
-            st.metric("Taux de codes postaux valides", f"{(valid_count / df.shape[0]) * 100:.2f}%")
-            
-            if invalid_count > 0:
-                st.warning(f"{invalid_count} codes postaux non conformes détectés.")
-                with st.expander("Afficher les codes postaux non conformes"):
-                    st.dataframe(df.loc[df["postal_valid"] == False, [postal_col]])
-            else:
-                st.success("Tous les codes postaux respectent le format attendu.")
-                
-            # Graphique en secteurs (pie) et diagramme en barres pour la répartition
-            fig_postal_pie = px.pie(names=["Valides", "Non valides"], values=[valid_count, invalid_count],
-                                    title="Répartition des codes postaux")
-            st.plotly_chart(fig_postal_pie, use_container_width=True)
-            
-            fig_postal_bar = px.bar(x=["Valides", "Non valides"], y=[valid_count, invalid_count],
-                                    labels={'x': 'Statut', 'y': 'Nombre'},
-                                    title="Nombre de codes postaux valides vs non valides")
-            st.plotly_chart(fig_postal_bar, use_container_width=True)
-        else:
-            st.info("Aucune colonne de codes postaux détectée dans les données.")
-        
-        st.write("---")
-        
-        # ================================================================
-        # 4. Suggestions d'imputation pour les valeurs manquantes
-        st.markdown("### Suggestions d'imputation")
-        impute_choice = st.selectbox("Choisissez une méthode d'imputation", options=["Aucune", "Moyenne", "Médiane", "Mode", "Suppression"])
-        if impute_choice != "Aucune":
-            imputed_df = df.copy()
-            if impute_choice in ["Moyenne", "Médiane"]:
-                # Appliquer sur les colonnes numériques
-                for col in imputed_df.select_dtypes(include=np.number).columns:
-                    if impute_choice == "Moyenne":
-                        imputed_df[col].fillna(imputed_df[col].mean(), inplace=True)
-                    else:
-                        imputed_df[col].fillna(imputed_df[col].median(), inplace=True)
-            elif impute_choice == "Mode":
-                # Appliquer sur toutes les colonnes
-                for col in imputed_df.columns:
-                    try:
-                        imputed_df[col].fillna(imputed_df[col].mode()[0], inplace=True)
-                    except Exception as e:
-                        st.error(f"Erreur lors de l'imputation par le mode pour la colonne {col} : {e}")
-            elif impute_choice == "Suppression":
-                imputed_df = imputed_df.dropna()
-            st.success(f"Imputation réalisée avec la méthode : {impute_choice}")
-            with st.expander("Aperçu des données après imputation"):
-                st.dataframe(imputed_df.head())
-
-# ---- Page Paramètres ----
-elif selected == "⚙️ Paramètres":
-    st.title("⚙️ Paramètres du Dashboard")
-    st.write("Configurez l'affichage et la source de données.")
-    if st.button("🔄 Recharger les données"):
-        st.experimental_rerun()
-    theme = st.radio("🎨 Choisir un thème :", ["Clair", "Sombre"])
-    if theme == "Clair":
-        st.success("Thème clair activé !")
-    else:
-        st.warning("Thème sombre activé !")
-
-
+                    
 elif selected == "Rapport Qualité":
     st.title("Analyse Qualité - Vérifications Personnalisées")
-
-    # Création de deux onglets : Configuration et Résultats
     tab_config, tab_results = st.tabs(["Configuration des Vérifications", "Résultats des Vérifications"])
-
-    # --- Onglet Configuration ---
+    
     with tab_config:
         st.header("Configuration par colonne")
         st.write("Pour chaque colonne, sélectionnez les fonctions de vérification à appliquer ainsi que leurs paramètres (le cas échéant).")
-        # Liste des fonctions applicables aux colonnes
         available_functions = [
             "ExpectColumnValuesToNotBeNull",
             "ExpectColumnValuesToBeBetween",
@@ -505,15 +416,13 @@ elif selected == "Rapport Qualité":
             "ExpectColumnValuesToRespectOrder",
             "ExpectColumnValuesToBeInDateRange"
         ]
-        custom_config = {}  # Dictionnaire qui stockera la configuration pour chaque colonne
-
+        custom_config = {}
         for col in df.columns:
             with st.expander(f"Configuration pour la colonne **{col}**", expanded=False):
                 selected_funcs = st.multiselect(f"Fonctions à appliquer sur {col} :", available_functions, key=f"func_{col}")
                 if selected_funcs:
                     custom_config[col] = {}
                     for func in selected_funcs:
-                        # Affichage dynamique des paramètres selon la fonction choisie
                         if func == "ExpectColumnValuesToBeBetween":
                             min_val = st.number_input(f"Valeur minimale pour {col} ({func})", value=0.0, key=f"{col}_{func}_min")
                             max_val = st.number_input(f"Valeur maximale pour {col} ({func})", value=100.0, key=f"{col}_{func}_max")
@@ -524,23 +433,17 @@ elif selected == "Rapport Qualité":
                         elif func == "ExpectColumnValuesToBeWithinIQR":
                             factor = st.number_input(f"Facteur pour {col} ({func})", value=1.5, key=f"{col}_{func}_factor")
                             custom_config[col][func] = {"factor": factor}
-                            
-                            
                         elif func == "ExpectColumnValuesToBeInSet":
                             input_mode = st.radio(f"Source des valeurs autorisées pour {col} ({func})", 
-                                                ["Saisie manuelle", "Téléchargement de fichier"], 
-                                                key=f"{col}_{func}_input_mode")
+                                                   ["Saisie manuelle", "Téléchargement de fichier"], key=f"{col}_{func}_input_mode")
                             if input_mode == "Saisie manuelle":
                                 valid_values_str = st.text_input(f"🔤 Valeurs autorisées pour {col} (séparées par une virgule) :", 
-                                                                value="A,B,C", 
-                                                                key=f"{col}_{func}_valid_values")
+                                                                 value="A,B,C", key=f"{col}_{func}_valid_values")
                                 valid_values = [v.strip() for v in valid_values_str.split(",") if v.strip()]
                             else:
                                 uploaded_file = st.file_uploader(f"Télécharger un fichier CSV ou Excel contenant les valeurs autorisées pour {col}", 
-                                                                type=["csv", "xlsx"], 
-                                                                key=f"{col}_{func}_file")
+                                                                 type=["csv", "xlsx"], key=f"{col}_{func}_file")
                                 if uploaded_file is not None:
-                                    import pandas as pd
                                     if uploaded_file.name.endswith("csv"):
                                         df_valid_values = pd.read_csv(uploaded_file)
                                     else:
@@ -550,11 +453,6 @@ elif selected == "Rapport Qualité":
                                     valid_values = None
                                     st.warning("Veuillez télécharger un fichier CSV ou Excel valide pour continuer.")
                             custom_config[col][func] = {"valid_values": valid_values}
-                                 
-                           
-                           
-                            
-                            
                         elif func == "ExpectColumnValuesToHaveLengthBetween":
                             min_length = st.number_input(f"Longueur minimale pour {col} ({func})", value=1, step=1, key=f"{col}_{func}_min_length")
                             max_length = st.number_input(f"Longueur maximale pour {col} ({func})", value=100, step=1, key=f"{col}_{func}_max_length")
@@ -567,23 +465,17 @@ elif selected == "Rapport Qualité":
                             else:
                                 st.error("Pas assez de colonnes pour configurer cette vérification.")
                         elif func == "ExpectColumnValuesToBeInDateRange":
-                            min_date = st.date_input(f"Date minimale pour {col} ({func})", value=datetime(2000,1,1), key=f"{col}_{func}_min_date")
+                            min_date = st.date_input(f"Date minimale pour {col} ({func})", value=datetime(2000, 1, 1), key=f"{col}_{func}_min_date")
                             max_date = st.date_input(f"Date maximale pour {col} ({func})", value=datetime.today(), key=f"{col}_{func}_max_date")
-                            custom_config[col][func] = {"min_date": pd.to_datetime(min_date),"max_date":pd.to_datetime( max_date)}
+                            custom_config[col][func] = {"min_date": pd.to_datetime(min_date), "max_date": pd.to_datetime(max_date)}
                         else:
-                            # Pour les fonctions ne nécessitant pas de paramètres additionnels (NotBeNull, BeUnique)
                             custom_config[col][func] = {}
-
-        # Stocker la configuration dans le session_state (si besoin d'un rafraîchissement)
         st.session_state.custom_config = custom_config
-
-        # Bouton de validation
         if st.button("Valider les vérifications"):
             results = []
             for col, funcs in custom_config.items():
                 for func_name, params in funcs.items():
                     try:
-                        # Appel dynamique de la fonction de vérification : Expectation.<fonction>(df, col, **params)
                         result = getattr(Expectation, func_name)(df, col, **params)
                         results.append(result)
                     except Exception as e:
@@ -598,37 +490,27 @@ elif selected == "Rapport Qualité":
             st.session_state.results = results
             st.success("Vérifications effectuées. Consultez l'onglet Résultats.")
 
-    # --- Onglet Résultats ---
     with tab_results:
         st.header("Résultats des vérifications")
         if "results" in st.session_state:
             results = st.session_state.results
             results_df = pd.DataFrame(results)
-
-            # Transformation pour homogénéiser la colonne 'unexpected_list'
             results_df["unexpected_list"] = results_df["unexpected_list"].apply(
                 lambda x: ", ".join(map(str, x)) if isinstance(x, list) else str(x)
             )
             st.dataframe(results_df)
-
             st.subheader("Métriques")
-      # Insertion du CSS personnalisé pour styliser les cartes métriques
             st.markdown("""
             <style>
-            /* Personnalisation de la valeur de la métrique */
             div[data-testid="stMetricValue"] {
                 font-size: 28px;
                 font-weight: bold;
-                color: #FF4136; /* Couleur rouge */
+                color: #FF4136;
             }
-
-            /* Personnalisation du label de la métrique */
             div[data-testid="stMetricLabel"] {
                 font-size: 18px;
                 color: #333;
             }
-
-            /* Personnalisation de l'apparence de la carte métrique */
             [data-testid="stMetric"] {
                 background-color: #f0f0f0;
                 padding: 10px;
@@ -637,11 +519,8 @@ elif selected == "Rapport Qualité":
             }
             </style>
             """, unsafe_allow_html=True)
-
-            # Affichage des métriques sous forme de cartes dans 3 colonnes
             cols = st.columns(3)
             for idx, res in enumerate(results):
-                # Affiche le pourcentage d'erreur pour chaque vérification (si calculé)
                 if res["unexpected_percent"] is not None:
                     cols[idx % 3].metric(label=res["check"], value=f"{res['unexpected_percent']}%")
         else:
