@@ -197,108 +197,263 @@ elif selected == "📊 Analyse Qualité":
                     st.success("✅ Aucune anomalie détectée !")
 
     # ----- Onglet 2 : Analyse Complémentaire -----
+    # with tab_complement:
+    #     st.subheader("Analyse Complémentaire des Données")
+
+    #     # Calcul des indicateurs de base
+    #     total_values = df.shape[0] * df.shape[1]
+    #     missing_percent = (df.isnull().sum().sum() / total_values) * 100
+    #     duplicate_percent = (df.shape[0] - df.drop_duplicates().shape[0]) / df.shape[0] * 100
+
+    #     col1, col2 = st.columns(2)
+    #     col1.metric("Valeurs Manquantes", f"{missing_percent:.2f}%")
+    #     col2.metric("Doublons", f"{duplicate_percent:.2f}%")
+        
+    #     st.write("### Aperçu des données")
+    #     st.dataframe(df.head())
+        
+    #     st.markdown(f"**Dimensions des données** : {df.shape[0]} lignes et {df.shape[1]} colonnes")
+        
+    #     types_df = pd.DataFrame({
+    #         "Variable": df.columns,
+    #         "Type": df.dtypes.astype(str)
+    #     })
+    #     st.write("### Types des Variables")
+    #     st.dataframe(types_df)
+
+    #     st.write("---")
+    #     st.subheader("Analyse Statistique")
+    #     analysis_cols = st.multiselect("Sélectionnez les colonnes pour le résumé", options=df.columns.tolist())
+    #     if analysis_cols:
+    #         st.write("#### Résumé statistique")
+    #         st.dataframe(df[analysis_cols].describe(include="all").T)
+    #     else:
+    #         st.info("Veuillez sélectionner des colonnes pour l'analyse statistique.")
+        
+    #     missing_cols = st.multiselect("Sélectionnez les colonnes à analyser pour les valeurs manquantes", options=df.columns.tolist(), key="missing_analysis")
+    #     if missing_cols:
+    #         st.write("#### Valeurs manquantes par colonne")
+    #         missing_counts = df[missing_cols].isnull().sum().to_frame(name="Missing Count")
+    #         st.dataframe(missing_counts)
+    #     else:
+    #         st.info("Veuillez sélectionner des colonnes pour analyser les valeurs manquantes.")
+
+    #     st.write("---")
+    #     st.subheader("Analyse de la Fraîcheur des Données")
+    #     freshness_col = st.selectbox("Sélectionnez la colonne de date", options=df.columns.tolist(), key="freshness_analysis")
+    #     freshness_ref = st.date_input("Choisir une date de référence", value=datetime.today(), key="ref_date")
+    #     try:
+    #         df[freshness_col] = pd.to_datetime(df[freshness_col], errors="coerce")
+    #         ref_date = pd.to_datetime(freshness_ref)
+    #         df["days_since_ref"] = (ref_date - df[freshness_col]).dt.days
+    #         st.write("#### Fraîcheur des données")
+    #         st.dataframe(df[[freshness_col, "days_since_ref"]].head())
+    #     except Exception as e:
+    #         st.error(f"Erreur lors du calcul de la fraîcheur : {e}")
+        
+    #     st.write("---")
+    #     st.subheader("Visualisation Graphique")
+    #     graph_type = st.selectbox("Choisir un type de graphique", options=["Histogramme", "Boxplot", "Camembert"], key="graph_type")
+    #     graph_cols = st.multiselect("Sélectionner la ou les colonnes", options=df.columns.tolist(), key="graph_cols")
+    #     if st.button("Tracer le graphique", key="plot_graph"):
+    #         figures = []
+    #         if graph_type == "Histogramme":
+    #             for col in graph_cols:
+    #                 fig = px.histogram(df, x=col, nbins=30,
+    #                                    title=f"Histogramme de {col}",
+    #                                    labels={col: col})
+    #                 figures.append(fig)
+    #         elif graph_type == "Boxplot":
+    #             if len(graph_cols) == 1:
+    #                 col = graph_cols[0]
+    #                 fig = px.box(df, y=col,
+    #                              title=f"Boxplot de {col}",
+    #                              labels={col: col})
+    #                 figures.append(fig)
+    #             elif len(graph_cols) > 1:
+    #                 df_long = df[graph_cols].melt(var_name="variable", value_name="value")
+    #                 fig = px.box(df_long, x="variable", y="value",
+    #                              title="Boxplot combiné",
+    #                              labels={"variable": "Variable", "value": "Valeur"})
+    #                 figures.append(fig)
+    #         elif graph_type == "Camembert":
+    #             for col in graph_cols:
+    #                 df_count = df[col].value_counts(dropna=True).reset_index()
+    #                 df_count.columns = [col, "Freq"]
+    #                 fig = px.pie(df_count, names=col, values="Freq",
+    #                              title=f"Camembert de {col}")
+    #                 figures.append(fig)
+            
+    #         if len(figures) == 1:
+    #             st.plotly_chart(figures[0], use_container_width=True)
+    #         elif len(figures) > 1:
+    #             ncols = 2
+    #             nrows = int(np.ceil(len(figures) / ncols))
+    #             fig_combined = make_subplots(rows=nrows, cols=ncols, subplot_titles=[f.layout.title.text for f in figures])
+    #             for idx, fig in enumerate(figures):
+    #                 row = idx // ncols + 1
+    #                 col = idx % ncols + 1
+    #                 for trace in fig.data:
+    #                     fig_combined.add_trace(trace, row=row, col=col)
+    #                 fig_combined.update_xaxes(title_text=fig.layout.xaxis.title.text, row=row, col=col)
+    #                 fig_combined.update_yaxes(title_text=fig.layout.yaxis.title.text, row=row, col=col)
+    #             fig_combined.update_layout(height=300 * nrows, showlegend=False)
+    #             st.plotly_chart(fig_combined, use_container_width=True)
+
+# ---- Analyse Complémentaire des Données ----
     with tab_complement:
         st.subheader("Analyse Complémentaire des Données")
 
-        # Calcul des indicateurs de base
-        total_values = df.shape[0] * df.shape[1]
-        missing_percent = (df.isnull().sum().sum() / total_values) * 100
-        duplicate_percent = (df.shape[0] - df.drop_duplicates().shape[0]) / df.shape[0] * 100
-
-        col1, col2 = st.columns(2)
-        col1.metric("Valeurs Manquantes", f"{missing_percent:.2f}%")
-        col2.metric("Doublons", f"{duplicate_percent:.2f}%")
-        
-        st.write("### Aperçu des données")
-        st.dataframe(df.head())
-        
-        st.markdown(f"**Dimensions des données** : {df.shape[0]} lignes et {df.shape[1]} colonnes")
-        
-        types_df = pd.DataFrame({
-            "Variable": df.columns,
-            "Type": df.dtypes.astype(str)
-        })
-        st.write("### Types des Variables")
-        st.dataframe(types_df)
-
-        st.write("---")
-        st.subheader("Analyse Statistique")
-        analysis_cols = st.multiselect("Sélectionnez les colonnes pour le résumé", options=df.columns.tolist())
-        if analysis_cols:
-            st.write("#### Résumé statistique")
-            st.dataframe(df[analysis_cols].describe(include="all").T)
-        else:
-            st.info("Veuillez sélectionner des colonnes pour l'analyse statistique.")
-        
-        missing_cols = st.multiselect("Sélectionnez les colonnes à analyser pour les valeurs manquantes", options=df.columns.tolist(), key="missing_analysis")
-        if missing_cols:
-            st.write("#### Valeurs manquantes par colonne")
-            missing_counts = df[missing_cols].isnull().sum().to_frame(name="Missing Count")
-            st.dataframe(missing_counts)
-        else:
-            st.info("Veuillez sélectionner des colonnes pour analyser les valeurs manquantes.")
-
-        st.write("---")
-        st.subheader("Analyse de la Fraîcheur des Données")
+        # ================================================================
+        # 1. Fraîcheur de la donnée en années
+        st.markdown("### Fraîcheur de la donnée")
         freshness_col = st.selectbox("Sélectionnez la colonne de date", options=df.columns.tolist(), key="freshness_analysis")
+        threshold_years = st.number_input("Définir le seuil de mise à jour (en années)", min_value=0, value=1, step=1)
         freshness_ref = st.date_input("Choisir une date de référence", value=datetime.today(), key="ref_date")
         try:
             df[freshness_col] = pd.to_datetime(df[freshness_col], errors="coerce")
             ref_date = pd.to_datetime(freshness_ref)
             df["days_since_ref"] = (ref_date - df[freshness_col]).dt.days
-            st.write("#### Fraîcheur des données")
-            st.dataframe(df[[freshness_col, "days_since_ref"]].head())
+            df["years_since_ref"] = df["days_since_ref"] / 365.0  # conversion approximative en années
+            
+            # KPI pour la fraîcheur
+            avg_years = df["years_since_ref"].mean()
+            median_years = df["years_since_ref"].median()
+            std_years = df["years_since_ref"].std()
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Moyenne (années)", f"{avg_years:.2f} ans")
+            col2.metric("Médiane (années)", f"{median_years:.2f} ans")
+            col3.metric("Écart-type (années)", f"{std_years:.2f} ans")
+            
+            # Histogramme de la distribution de la fraîcheur
+            fig_hist = px.histogram(df, x="years_since_ref", nbins=30, title="Distribution de la fraîcheur des données (en années)")
+            st.plotly_chart(fig_hist, use_container_width=True)
+            
+            # Graphique cumulatif de la fraîcheur
+            df_sorted = df.sort_values("years_since_ref")
+            df_sorted["cumulative"] = np.arange(1, df_sorted.shape[0] + 1) / df_sorted.shape[0]
+            fig_line = px.line(df_sorted, x="years_since_ref", y="cumulative", 
+                            title="Distribution cumulative de la fraîcheur des données")
+            st.plotly_chart(fig_line, use_container_width=True)
+            
+            # Enregistrements nécessitant une mise à jour (seuil en années)
+            outdated_count = (df["years_since_ref"] > threshold_years).sum()
+            total_records = df.shape[0]
+            st.info(f"{outdated_count} enregistrements sur {total_records} nécessitent une mise à jour (plus de {threshold_years} ans).")
         except Exception as e:
             st.error(f"Erreur lors du calcul de la fraîcheur : {e}")
         
         st.write("---")
-        st.subheader("Visualisation Graphique")
-        graph_type = st.selectbox("Choisir un type de graphique", options=["Histogramme", "Boxplot", "Camembert"], key="graph_type")
-        graph_cols = st.multiselect("Sélectionner la ou les colonnes", options=df.columns.tolist(), key="graph_cols")
-        if st.button("Tracer le graphique", key="plot_graph"):
-            figures = []
-            if graph_type == "Histogramme":
-                for col in graph_cols:
-                    fig = px.histogram(df, x=col, nbins=30,
-                                       title=f"Histogramme de {col}",
-                                       labels={col: col})
-                    figures.append(fig)
-            elif graph_type == "Boxplot":
-                if len(graph_cols) == 1:
-                    col = graph_cols[0]
-                    fig = px.box(df, y=col,
-                                 title=f"Boxplot de {col}",
-                                 labels={col: col})
-                    figures.append(fig)
-                elif len(graph_cols) > 1:
-                    df_long = df[graph_cols].melt(var_name="variable", value_name="value")
-                    fig = px.box(df_long, x="variable", y="value",
-                                 title="Boxplot combiné",
-                                 labels={"variable": "Variable", "value": "Valeur"})
-                    figures.append(fig)
-            elif graph_type == "Camembert":
-                for col in graph_cols:
-                    df_count = df[col].value_counts(dropna=True).reset_index()
-                    df_count.columns = [col, "Freq"]
-                    fig = px.pie(df_count, names=col, values="Freq",
-                                 title=f"Camembert de {col}")
-                    figures.append(fig)
+
+        # ================================================================
+        # 2. Présence de la donnée
+        st.markdown("### Présence de la donnée")
+        
+        # Pourcentage de valeurs manquantes par colonne
+        missing_stats = df.isnull().mean() * 100  # pourcentage par colonne
+        missing_stats = missing_stats.sort_values(ascending=False)
+        st.write("Pourcentage de valeurs manquantes par colonne :")
+        fig_missing = px.bar(x=missing_stats.index, y=missing_stats.values,
+                            labels={'x': 'Colonne', 'y': 'Pourcentage manquant (%)'},
+                            title="Pourcentage de données manquantes par colonne")
+        st.plotly_chart(fig_missing, use_container_width=True)
+        
+        # Identification des enregistrements critiques (taux élevé de données manquantes)
+        missing_threshold = st.slider("Seuil pour identifier des enregistrements critiques (en % de données manquantes)",
+                                    min_value=0.0, max_value=100.0, value=50.0)
+        df["missing_percentage"] = df.isnull().mean(axis=1) * 100
+        critical_records = df[df["missing_percentage"] >= missing_threshold]
+        st.write(f"Nombre d'enregistrements avec au moins {missing_threshold}% de données manquantes : {critical_records.shape[0]}")
+        if not critical_records.empty:
+            with st.expander("Afficher les enregistrements critiques"):
+                st.dataframe(critical_records)
+        
+        st.write("---")
+        
+        # ================================================================
+        # 3. Cohérence de la donnée (Codes Postaux)
+        st.markdown("### Cohérence de la donnée : Codes Postaux")
+        postal_cols = [col for col in df.columns if "postal" in col.lower() or "code" in col.lower()]
+        if postal_cols:
+            postal_col = st.selectbox("Sélectionnez la colonne des codes postaux", options=postal_cols, key="postal_code")
+            validation_method = st.radio("Méthode de validation des codes postaux", options=["Regex", "Fichier de codes valides"], key="postal_validation")
             
-            if len(figures) == 1:
-                st.plotly_chart(figures[0], use_container_width=True)
-            elif len(figures) > 1:
-                ncols = 2
-                nrows = int(np.ceil(len(figures) / ncols))
-                fig_combined = make_subplots(rows=nrows, cols=ncols, subplot_titles=[f.layout.title.text for f in figures])
-                for idx, fig in enumerate(figures):
-                    row = idx // ncols + 1
-                    col = idx % ncols + 1
-                    for trace in fig.data:
-                        fig_combined.add_trace(trace, row=row, col=col)
-                    fig_combined.update_xaxes(title_text=fig.layout.xaxis.title.text, row=row, col=col)
-                    fig_combined.update_yaxes(title_text=fig.layout.yaxis.title.text, row=row, col=col)
-                fig_combined.update_layout(height=300 * nrows, showlegend=False)
-                st.plotly_chart(fig_combined, use_container_width=True)
+            if validation_method == "Regex":
+                regex_postal = st.text_input("Entrez la règle Regex pour les codes postaux", value=r"^\d{5}$", key="postal_regex")
+                df["postal_valid"] = df[postal_col].astype(str).str.match(regex_postal)
+            else:
+                uploaded_postal_file = st.file_uploader("Chargez le fichier contenant les codes postaux valides", type=["csv", "xls", "xlsx", "txt"], key="postal_file")
+                if uploaded_postal_file is not None:
+                    try:
+                        # Supposons que le fichier contient une colonne unique avec les codes postaux
+                        if uploaded_postal_file.name.split('.')[-1].lower() in ["csv"]:
+                            valid_postal_df = pd.read_csv(uploaded_postal_file)
+                        elif uploaded_postal_file.name.split('.')[-1].lower() in ["xls", "xlsx"]:
+                            valid_postal_df = pd.read_excel(uploaded_postal_file)
+                        else:
+                            valid_postal_df = pd.DataFrame([line.strip() for line in uploaded_postal_file.getvalue().decode("utf-8").splitlines()], columns=["code"])
+                        
+                        # Extraction des codes valides sous forme de set
+                        valid_codes = set(valid_postal_df.iloc[:, 0].astype(str))
+                        df["postal_valid"] = df[postal_col].astype(str).apply(lambda x: x in valid_codes)
+                        st.success("Fichier de codes postaux chargé avec succès.")
+                    except Exception as e:
+                        st.error(f"Erreur lors du chargement du fichier de codes postaux : {e}")
+                        df["postal_valid"] = False
+                else:
+                    st.info("Veuillez charger un fichier de codes postaux pour la validation ou choisissez la méthode Regex.")
+                    df["postal_valid"] = False
+            
+            valid_count = df["postal_valid"].sum()
+            invalid_count = df.shape[0] - valid_count
+            st.metric("Taux de codes postaux valides", f"{(valid_count / df.shape[0]) * 100:.2f}%")
+            
+            if invalid_count > 0:
+                st.warning(f"{invalid_count} codes postaux non conformes détectés.")
+                with st.expander("Afficher les codes postaux non conformes"):
+                    st.dataframe(df.loc[df["postal_valid"] == False, [postal_col]])
+            else:
+                st.success("Tous les codes postaux respectent le format attendu.")
+                
+            # Graphique en secteurs (pie) et diagramme en barres pour la répartition
+            fig_postal_pie = px.pie(names=["Valides", "Non valides"], values=[valid_count, invalid_count],
+                                    title="Répartition des codes postaux")
+            st.plotly_chart(fig_postal_pie, use_container_width=True)
+            
+            fig_postal_bar = px.bar(x=["Valides", "Non valides"], y=[valid_count, invalid_count],
+                                    labels={'x': 'Statut', 'y': 'Nombre'},
+                                    title="Nombre de codes postaux valides vs non valides")
+            st.plotly_chart(fig_postal_bar, use_container_width=True)
+        else:
+            st.info("Aucune colonne de codes postaux détectée dans les données.")
+        
+        st.write("---")
+        
+        # ================================================================
+        # 4. Suggestions d'imputation pour les valeurs manquantes
+        st.markdown("### Suggestions d'imputation")
+        impute_choice = st.selectbox("Choisissez une méthode d'imputation", options=["Aucune", "Moyenne", "Médiane", "Mode", "Suppression"])
+        if impute_choice != "Aucune":
+            imputed_df = df.copy()
+            if impute_choice in ["Moyenne", "Médiane"]:
+                # Appliquer sur les colonnes numériques
+                for col in imputed_df.select_dtypes(include=np.number).columns:
+                    if impute_choice == "Moyenne":
+                        imputed_df[col].fillna(imputed_df[col].mean(), inplace=True)
+                    else:
+                        imputed_df[col].fillna(imputed_df[col].median(), inplace=True)
+            elif impute_choice == "Mode":
+                # Appliquer sur toutes les colonnes
+                for col in imputed_df.columns:
+                    try:
+                        imputed_df[col].fillna(imputed_df[col].mode()[0], inplace=True)
+                    except Exception as e:
+                        st.error(f"Erreur lors de l'imputation par le mode pour la colonne {col} : {e}")
+            elif impute_choice == "Suppression":
+                imputed_df = imputed_df.dropna()
+            st.success(f"Imputation réalisée avec la méthode : {impute_choice}")
+            with st.expander("Aperçu des données après imputation"):
+                st.dataframe(imputed_df.head())
 
 # ---- Page Paramètres ----
 elif selected == "⚙️ Paramètres":
